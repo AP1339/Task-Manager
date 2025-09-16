@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Tracker Pro</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+
+  <style>
+    body { font-family: "Segoe UI", sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    h1 { margin: 20px; color: #58a6ff; font-weight: 600; font-size: 1.8rem; }
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+    .tabs button { padding: 10px 20px; border: none; border-radius: 6px; background: #161b22; color: #58a6ff; cursor: pointer; font-weight: 600; }
+    .tabs button.active { background: #58a6ff; color: white; }
+    .task-input, .filters { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; background: #161b22; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); width: 95%; max-width: 800px; margin-bottom: 20px; }
+    input, select, button { padding: 10px 12px; border-radius: 8px; border: none; font-size: 0.9rem; }
+    input, select { background: #0d1117; color: #e6edf3; border: 1px solid #30363d; }
+    button { background: #58a6ff; color: #fff; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    button:hover { background: #1f6feb; }
+    ul { list-style: none; padding: 0; margin: 0; width: 95%; max-width: 800px; }
+    li { background: #161b22; margin: 10px 0; padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+    li:hover { transform: translateY(-2px); }
+    .done span { text-decoration: line-through; color: #8b949e; }
+    .labels { display: flex; gap: 8px; font-size: 0.75rem; margin-top: 5px; }
+    .category { padding: 2px 6px; border-radius: 6px; background: #30363d; color: #58a6ff; }
+    .priority { padding: 2px 6px; border-radius: 6px; font-weight: bold; }
+    .high { background: #f85149; color: white; }
+    .medium { background: #f5a623; color: black; }
+    .low { background: #2ea043; color: white; }
+    .task-actions button { margin-left: 8px; border-radius: 6px; padding: 6px 10px; font-size: 0.8rem; }
+    .done-btn { background: #2ea043; color: #fff; }
+    .delete { background: #f85149; color: #fff; }
+    .done-btn:hover { background: #238636; }
+    .delete:hover { background: #c93c37; }
+    #calendar { max-width: 900px; background: #161b22; padding: 10px; border-radius: 12px; }
+    @media (max-width: 600px) { .task-input, .filters { flex-direction: column; align-items: stretch; } }
+  </style>
+</head>
+<body>
+  <h1>📌 Task Tracker Pro</h1>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button id="listTab" class="active" onclick="showTab('list')">📝 Task List</button>
+    <button id="calendarTab" onclick="showTab('calendar')">📅 Calendar</button>
+  </div>
+
+  <!-- Task Input -->
+  <div class="task-input">
+    <input type="text" id="task" placeholder="Enter task...">
+    <input type="date" id="dueDate">
+    <select id="category">
+      <option value="">Category</option>
+      <option>Study</option>
+      <option>Work</option>
+      <option>Personal</option>
+      <option>Other</option>
+    </select>
+    <select id="priority">
+      <option value="">Priority</option>
+      <option value="high">High 🔴</option>
+      <option value="medium">Medium 🟡</option>
+      <option value="low">Low 🟢</option>
+    </select>
+    <button onclick="addTask()">Add Task</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters" id="filters">
+    <input type="text" id="search" placeholder="Search tasks...">
+    <select id="filterCategory" onchange="filterTasks()">
+      <option value="">All Categories</option>
+      <option>Study</option>
+      <option>Work</option>
+      <option>Personal</option>
+      <option>Other</option>
+    </select>
+    <select id="filterPriority" onchange="filterTasks()">
+      <option value="">All Priorities</option>
+      <option value="high">High 🔴</option>
+      <option value="medium">Medium 🟡</option>
+      <option value="low">Low 🟢</option>
+    </select>
+  </div>
+
+  <!-- Task List -->
+  <ul id="taskList"></ul>
+
+  <!-- Calendar -->
+  <div id="calendar" style="display:none;"></div>
+
+  <!-- FullCalendar -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-messaging.js";
+
+    // ✅ Your Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCW6mH3v7y7P8kiBQiHiDha8VZ6qp4kwAE",
+      authDomain: "task-tracker-pro-2a583.firebaseapp.com",
+      projectId: "task-tracker-pro-2a583",
+      storageBucket: "task-tracker-pro-2a583.firebasestorage.app",
+      messagingSenderId: "292588593869",
+      appId: "1:292588593869:web:3838f7c16b079a30453f84",
+      measurementId: "G-WT0J6699R6"
+    };
+
+    // Init Firebase
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+
+    // Ask for permission
+    async function requestPermission() {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        try {
+          const token = await getToken(messaging, { vapidKey: "BPoYP8Gt406Hx20HBfqypF_vTIGeY7XT4jV7Vtx_FNEnaoDbczm71uDUUKbhlrxd2zhdqBt5tEJW52LDKvROH3k" });
+          console.log("FCM Token:", token);
+          alert("Notifications enabled ✅\nCheck console for token.");
+        } catch (err) {
+          console.error("Error getting token:", err);
+        }
+      }
+    }
+    requestPermission();
+
+    // Foreground notification
+    onMessage(messaging, (payload) => {
+      new Notification(payload.notification.title, { body: payload.notification.body });
+    });
+  </script>
+
+  <!-- Task Tracker Logic -->
+  <script>
+    const taskList = document.getElementById("taskList");
+    const searchInput = document.getElementById("search");
+    const filterCategory = document.getElementById("filterCategory");
+    const filterPriority = document.getElementById("filterPriority");
+    let calendar;
+
+    searchInput.addEventListener("input", filterTasks);
+
+    function loadTasks() {
+      const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+      tasks.forEach(task => renderTask(task));
+      updateCalendar();
+    }
+
+    function saveTasks() {
+      const tasks = [];
+      document.querySelectorAll("li").forEach(li => {
+        tasks.push({
+          text: li.querySelector("span").innerText,
+          done: li.classList.contains("done"),
+          category: li.getAttribute("data-category"),
+          priority: li.getAttribute("data-priority"),
+          dueDate: li.getAttribute("data-dueDate")
+        });
+      });
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+      updateCalendar();
+    }
+
+    function addTask() {
+      const task = document.getElementById("task").value;
+      const dueDate = document.getElementById("dueDate").value;
+      const category = document.getElementById("category").value;
+      const priority = document.getElementById("priority").value;
+      if (!task) return alert("Enter a task!");
+
+      const taskText = task + (dueDate ? " (Due: " + dueDate + ")" : "");
+      renderTask({ text: taskText, done: false, category, priority, dueDate });
+      saveTasks();
+
+      document.getElementById("task").value = "";
+      document.getElementById("dueDate").value = "";
+      document.getElementById("category").value = "";
+      document.getElementById("priority").value = "";
+    }
+
+    function renderTask(task) {
+      const li = document.createElement("li");
+      li.setAttribute("data-category", task.category || "");
+      li.setAttribute("data-priority", task.priority || "");
+      li.setAttribute("data-dueDate", task.dueDate || "");
+      li.innerHTML = `
+        <div>
+          <span>${task.text}</span>
+          <div class="labels">
+            ${task.category ? `<span class="category">${task.category}</span>` : ""}
+            ${task.priority ? `<span class="priority ${task.priority}">${task.priority.toUpperCase()}</span>` : ""}
+          </div>
+        </div>
+        <div class="task-actions">
+          <button class="done-btn" onclick="toggleDone(this)">✔ Done</button>
+          <button class="delete" onclick="deleteTask(this)">✖ Delete</button>
+        </div>`;
+      if (task.done) li.classList.add("done");
+      taskList.appendChild(li);
+    }
+
+    function toggleDone(button) {
+      const li = button.closest("li");
+      li.classList.toggle("done");
+      saveTasks();
+    }
+
+    function deleteTask(button) {
+      const li = button.closest("li");
+      li.remove();
+      saveTasks();
+    }
+
+    function filterTasks() {
+      const search = searchInput.value.toLowerCase();
+      const cat = filterCategory.value;
+      const pri = filterPriority.value;
+      document.querySelectorAll("li").forEach(li => {
+        const text = li.querySelector("span").innerText.toLowerCase();
+        const category = li.getAttribute("data-category");
+        const priority = li.getAttribute("data-priority");
+        const matchSearch = text.includes(search);
+        const matchCat = !cat || category === cat;
+        const matchPri = !pri || priority === pri;
+        li.style.display = (matchSearch && matchCat && matchPri) ? "flex" : "none";
+      });
+    }
+
+    function showTab(tab) {
+      document.getElementById("taskList").style.display = tab === "list" ? "block" : "none";
+      document.getElementById("filters").style.display = tab === "list" ? "flex" : "none";
+      document.getElementById("calendar").style.display = tab === "calendar" ? "block" : "none";
+      document.getElementById("listTab").classList.toggle("active", tab === "list");
+      document.getElementById("calendarTab").classList.toggle("active", tab === "calendar");
+      if (tab === "calendar") updateCalendar();
+    }
+
+    function updateCalendar() {
+      const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+      if (!calendar) {
+        calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
+          initialView: "dayGridMonth",
+          height: "auto",
+          events: []
+        });
+        calendar.render();
+      }
+      calendar.removeAllEvents();
+      tasks.forEach(task => {
+        if (task.dueDate) {
+          calendar.addEvent({
+            title: task.text,
+            start: task.dueDate,
+            color: task.priority === "high" ? "#f85149" :
+                   task.priority === "medium" ? "#f5a623" : "#2ea043"
+          });
+        }
+      });
+    }
+
+    loadTasks();
+  </script>
+</body>
+</html>
