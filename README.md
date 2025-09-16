@@ -17,15 +17,6 @@ Hosted for free on GitHub Pages.
 📱 Fully responsive (mobile + desktop)
 🌍 Free hosting with GitHub Pages
 
-🖼️ Screenshots
-
-🔹 Task List
-
-![alt text](list.png)
-
-🔹 Calendar View
-
-![alt text](table.png)
 
 
 🚀 Deployment
