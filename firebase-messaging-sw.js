@@ -10,6 +10,9 @@ firebase.initializeApp({
   messagingSenderId: "292588593869",
   appId: "1:292588593869:web:3838f7c16b079a30453f84"
 });
+// Firebase API key is safe to expose in frontend.
+// Security is enforced via Firebase Security Rules.
+
 
 const messaging = firebase.messaging();
 
